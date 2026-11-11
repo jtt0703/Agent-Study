@@ -1,0 +1,10 @@
+# 密钥不进仓库
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Agent 的沙箱内容
+workspace/
