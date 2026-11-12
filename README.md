@@ -25,7 +25,7 @@
 | 课 | 主题 | 状态 | 这一课我搞懂了什么 |
 |---|---|---|---|
 | 01 | [最小循环](https://github.com/aa1143/NamiAgent/blob/main/docs/01-minimal-loop.md) | ✅ [笔记](notes/lesson-01.md) | 一个 `while` + `tool_calls` 就是 Agent；工具结果要按 `tool_call_id` 回填；`MAX_STEPS` 防止死循环 |
-| 02 | [工具系统](https://github.com/aa1143/NamiAgent/blob/main/docs/02-tools.md) | ⬜ | 用装饰器把函数注册进 `TOOLS`；加工具只写函数，不改主循环 |
+| 02 | [工具系统](https://github.com/aa1143/NamiAgent/blob/main/docs/02-tools.md) | ✅ [笔记](notes/lesson-02.md) | 用装饰器把函数注册进 `TOOLS`；加工具只写函数，不改主循环 |
 | 03 | [权限](https://github.com/aa1143/NamiAgent/blob/main/docs/03-permissions.md) | ⬜ | 硬规则 → 风险分级 → 人工确认 |
 | 04 | [上下文管理](https://github.com/aa1143/NamiAgent/blob/main/docs/04-context.md) | ⬜ | 截断 / 清理 / 摘要，会话持久化 |
 | 05 | [Skills](https://github.com/aa1143/NamiAgent/blob/main/docs/05-skills.md) | ⬜ | AGENTS.md 常驻，技能按需加载 |
@@ -58,14 +58,19 @@ Agent-Study/
 ├── README.md                 # 总览：学习路线、进度、怎么跑
 ├── notes/                    # 每课一篇学习笔记
 │   ├── _template.md          # 新笔记从这里复制
-│   └── lesson-01.md
+│   ├── lesson-01.md
+│   └── lesson-02.md
 │
 ├── .env.example              # 配置模板（真实的 .env 不提交）
 ├── requirements.txt          # 只有 openai 和 python-dotenv
 ├── workspace/                # 第 3 课 Agent 的沙箱，只有它能碰这里
 │
-└── lesson-01/                # 最小 Agent：一个循环 + 三个工具
-    └── agent.py
+├── lesson-01/                # 最小 Agent：一个循环 + 三个工具
+│   └── agent.py
+│
+└── lesson-02/                # 工具系统：注册表 + 装饰器 + execute() 兜底
+    ├── agent.py
+    └── tools.py
 ```
 
 ## 学习笔记
@@ -121,6 +126,9 @@ NAMI_WORKSPACE=workspace
 ```powershell
 # 第 1 课：一次性任务
 .\venv\Scripts\python.exe .\lesson-01\agent.py "把当前目录的文件列出来并总结"
+
+# 第 2 课：交互式，可以连续追问
+.\venv\Scripts\python.exe .\lesson-02\agent.py
 ```
 
 macOS / Linux 把 `.\venv\Scripts\python.exe` 换成 `python` 即可。
