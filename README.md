@@ -26,7 +26,7 @@
 |---|---|---|---|
 | 01 | [最小循环](https://github.com/aa1143/NamiAgent/blob/main/docs/01-minimal-loop.md) | ✅ [笔记](notes/lesson-01.md) | 一个 `while` + `tool_calls` 就是 Agent；工具结果要按 `tool_call_id` 回填；`MAX_STEPS` 防止死循环 |
 | 02 | [工具系统](https://github.com/aa1143/NamiAgent/blob/main/docs/02-tools.md) | ✅ [笔记](notes/lesson-02.md) | 用装饰器把函数注册进 `TOOLS`；加工具只写函数，不改主循环 |
-| 03 | [权限](https://github.com/aa1143/NamiAgent/blob/main/docs/03-permissions.md) | ⬜ | 硬规则 → 风险分级 → 人工确认 |
+| 03 | [权限](https://github.com/aa1143/NamiAgent/blob/main/docs/03-permissions.md) | ✅ [笔记](notes/lesson-03.md) | 硬规则 → 风险分级 → 人工确认；工作区不等于沙箱；用 pytest 验证权限分支 |
 | 04 | [上下文管理](https://github.com/aa1143/NamiAgent/blob/main/docs/04-context.md) | ⬜ | 截断 / 清理 / 摘要，会话持久化 |
 | 05 | [Skills](https://github.com/aa1143/NamiAgent/blob/main/docs/05-skills.md) | ⬜ | AGENTS.md 常驻，技能按需加载 |
 | 06 | [接入聊天软件](https://github.com/aa1143/NamiAgent/blob/main/docs/06-chat-apps.md) | ⬜ | 常驻进程、聊天里确认、白名单 |
@@ -59,25 +59,34 @@ Agent-Study/
 ├── notes/                    # 每课一篇学习笔记
 │   ├── _template.md          # 新笔记从这里复制
 │   ├── lesson-01.md
-│   └── lesson-02.md
+│   ├── lesson-02.md
+│   └── lesson-03.md
 │
 ├── .env.example              # 配置模板（真实的 .env 不提交）
 ├── requirements.txt          # 只有 openai 和 python-dotenv
-├── workspace/                # 第 3 课 Agent 的沙箱，只有它能碰这里
+├── workspace/                # 第 3 课文件工具的工作区，不是系统沙箱
 │
 ├── lesson-01/                # 最小 Agent：一个循环 + 三个工具
 │   └── agent.py
 │
-└── lesson-02/                # 工具系统：注册表 + 装饰器 + execute() 兜底
+├── lesson-02/                # 工具系统：注册表 + 装饰器 + execute() 兜底
+│   ├── agent.py
+│   └── tools.py
+│
+└── lesson-03/                # 权限：硬规则、风险分级、人工确认
     ├── agent.py
-    └── tools.py
+    ├── tools.py
+    ├── permissions.py
+    └── tests/
+        ├── conftest.py        # 准备临时工作区和导入路径
+        └── test_permissions.py
 ```
 
 ## 学习笔记
 
 `notes/` 里一课一篇，和 `lesson-0X/` 的代码一一对应。README 只放总览和进度，具体心得都写在笔记里，免得这个文件越写越长。
 
-每篇笔记固定写五块：
+笔记是自己的随心记，按当时遇到的问题整理，不必固定格式。可以从这几个方向记：
 
 1. **这一课解决什么问题**：上一课留下了什么坑
 2. **代码走读**：用自己的话把主流程讲一遍
@@ -85,7 +94,9 @@ Agent-Study/
 4. **和上一课的区别**
 5. **还没想明白的**：留着以后回来补
 
-新学一课就复制 `notes/_template.md`，改名为 `lesson-0X.md`，再在右上角进度表里把 ⬜ 换成 ✅ 并链接过去。
+新学一课可以从 `notes/_template.md` 开始，也可以直接记问题和复盘；学完后在上方进度表里更新状态并链接笔记。
+
+[第三课笔记](notes/lesson-03.md) 记录了 `~/.ssh` 为什么通过 shell 被访问、工作区与沙箱的区别、类型注解与方法跳转、pytest 和 `conftest.py`，以及消息历史如何发送给模型。
 
 > 检验标准：合上代码，能不能只靠这篇笔记把这一课讲给别人听。
 
@@ -121,6 +132,8 @@ MODEL=deepseek-chat
 NAMI_WORKSPACE=workspace
 ```
 
+`NAMI_WORKSPACE=workspace` 从第三课开始使用，相对项目根目录解析；当前等价于项目下的 `workspace/`。它限制文件工具的访问路径，并作为 shell 的起始目录，不提供系统级隔离。
+
 运行：
 
 ```powershell
@@ -129,9 +142,25 @@ NAMI_WORKSPACE=workspace
 
 # 第 2 课：交互式，可以连续追问
 .\venv\Scripts\python.exe .\lesson-02\agent.py
+
+# 第 3 课：执行工具前检查权限
+.\venv\Scripts\python.exe .\lesson-03\agent.py
 ```
 
 macOS / Linux 把 `.\venv\Scripts\python.exe` 换成 `python` 即可。
+
+### 运行第三课测试
+
+运行依赖仍然只有 `openai` 和 `python-dotenv`。测试另外安装 `pytest`，以下命令在项目根目录执行：
+
+```powershell
+.\venv\Scripts\python.exe -m pip install pytest
+.\venv\Scripts\python.exe -m pytest .\lesson-03\tests -v
+```
+
+当前有 6 个测试。pytest 会自动加载 `tests/conftest.py`，先创建临时工作区，再运行权限测试。测试通过注入假的询问函数模拟用户回答，不请求模型，也不真正执行 shell 或读写业务文件；准备测试环境会创建临时目录。
+
+这些是普通 pytest 测试函数，不能用 `unittest discover` 代替运行。
 
 ## 和原课程不一样的地方
 
@@ -141,7 +170,6 @@ macOS / Linux 把 `.\venv\Scripts\python.exe` 换成 `python` 即可。
 |---|---|---|
 | `export API_KEY=...` 每次都设 | 根目录一份 `.env` + `python-dotenv` | PowerShell 里没有 `export`，每次设太麻烦 |
 | `export NAMI_WORKSPACE=~/agent-workspace` | `.env` 里 `NAMI_WORKSPACE=workspace`，相对项目根目录 | 不用记路径，换电脑也能跑 |
-| `pytest` | 标准库 `unittest` 写测试 | 不用额外装包，`pytest` 也能直接跑这些测试 |
 | 课程目录 `lessons/lesson-0X` | 根目录 `lesson-0X/` | 目录更浅，打开就是这一课 |
 
 `.env` 每个 `agent.py` 顶部用两行加载：
@@ -175,7 +203,8 @@ lesson-03: 权限
 这是教学代码，Agent 会**真的**执行命令、读写文件。
 
 - 第 1、2 课没有沙箱，相对路径就是启动时的当前目录，别在重要目录里跑。
-- 第 3 课起才把操作限制在 `NAMI_WORKSPACE` 里，但也只是挡误操作和低成本越界，**挡不住有意的攻击**。
+- 第 3 课的 `list_dir`、`read_file`、`write_file` 会检查路径是否位于 `NAMI_WORKSPACE` 内；`run_shell` 只设置起始目录、检查危险命令模式并要求确认，**仍可访问工作区外的路径**。
+- 当前没有接入操作系统沙箱。工作目录和人工审批不等于系统隔离，真实隔离需要容器、受限用户或系统沙箱等机制。
 - 不要把工作区指向主目录，更不要把 `.env` 提交上去。
 
 ## 鸣谢
